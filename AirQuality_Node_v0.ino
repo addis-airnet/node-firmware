@@ -20,8 +20,8 @@
 #define API_KEY "AIzaSyAWCvZuaKVbtPYlu83KDlz1QkLDDY0pj-E"
 #define DATABASE_URL "https://sen55-air-quality-monitor-default-rtdb.europe-west1.firebasedatabase.app/"
 
-#define USER_EMAIL "ephraimwoldemichael@gmail.com"
-#define USER_PASSWORD "itisme"
+#define USER_EMAIL ""
+#define USER_PASSWORD ""
 
 
 SensirionI2CSen5x sen5x;
@@ -218,3 +218,4 @@ void loop() {
     }
   }
 }
+
