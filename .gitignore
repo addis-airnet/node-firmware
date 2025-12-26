@@ -1,0 +1,24 @@
+# PlatformIO
+.pio/
+.vscode/
+
+# Arduino
+*.elf
+*.bin
+*.hex
+*.eep
+*.map
+*.a
+*.lib
+*.d
+*.dep
+*.lss
+*.o
+*.out
+*.sym
+*.log
+*.lock
+
+# OS / misc
+.DS_Store
+Thumbs.db
