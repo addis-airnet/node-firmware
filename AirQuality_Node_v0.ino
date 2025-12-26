@@ -10,9 +10,6 @@
 #include <time.h>
 
 #define NTP_SERVER "pool.ntp.org"
-//#define GMT_OFFSET_SEC (3 * 3600)   
-//#define DAYLIGHT_OFFSET_SEC 0
-
 
 #define WIFI_SSID ""
 #define WIFI_PASSWORD ""
@@ -218,4 +215,5 @@ void loop() {
     }
   }
 }
+
 
