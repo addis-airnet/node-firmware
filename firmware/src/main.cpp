@@ -14,7 +14,7 @@
 #define WIFI_SSID "Lebse"
 #define WIFI_PASSWORD ""
 
-#define API_KEY "AIzaSyDeT6jMxkcVtfsaA__vtLAvtKCq1h81jrXM"
+#define API_KEY "AIzaSyDeT6jMxkcVfsaA__vtLAvtKCq1h81jrXM"
 #define DATABASE_URL "https://air-quality-4283c-default-rtdb.europe-west1.firebasedatabase.app/"
 #define USER_EMAIL "natnaelabdissa8@gmail.com"
 #define USER_PASSWORD "oogabooga"
@@ -27,6 +27,7 @@
 
 #define SD_CS 5
 #define LOG_FILE "/log.txt"
+#define UPLOAD_PTR_FILE "/upload.ptr"
 
 #define MAX_LINES_PER_UPLOAD 10
 
@@ -69,7 +70,7 @@ void setup() {
   warmupStartTime = millis();
 
   /* ---- SD ---- */
-  if (!SD.begin(SD_CS)) {
+  if (!SD.begin(SD_CS, SPI, 1000000)) {
     Serial.println("SD init failed");
   } else {
     Serial.println("SD ready");
@@ -155,8 +156,7 @@ void readSEN55(
     pm1_0, pm2_5, pm4_0, pm10_0,
     humidity, temperature, vocIndex, noxIndex
   );
-
-  if (error) {
+if (error) {
     Serial.println("SEN55 read error");
   }
 }
@@ -175,7 +175,7 @@ void logReadingToSD(FirebaseJson& reading) {
 
   Serial.println("Logged to SD");
 }
-
+/*
 void uploadFromSD() {
   if (!Firebase.ready()) return;
 
@@ -200,7 +200,8 @@ void uploadFromSD() {
       readings.set(String(count), r);
       count++;
     } else {
-      remaining += line + "\n";
+      remaining
+       += line + "\n";
     }
   }
   f.close();
@@ -223,6 +224,80 @@ void uploadFromSD() {
     Serial.println(fbdo.errorReason());
   }
 }
+*/
+void uploadFromSD() {
+  if (!Firebase.ready()) return;
+
+
+  File logFile = SD.open(LOG_FILE, FILE_READ);
+  if (!logFile) {
+    Serial.println("Failed to open log file");
+    return;
+  }
+
+
+  size_t offset = 0;
+  File ptrFile = SD.open(UPLOAD_PTR_FILE, FILE_READ);
+  if (ptrFile) {
+    offset = ptrFile.parseInt();
+    ptrFile.close();
+  }
+
+  
+  if (!logFile.seek(offset)) {
+    Serial.println("Seek failed, resetting pointer");
+    offset = 0;
+    logFile.seek(0);
+  }
+
+  FirebaseJson readings;
+  FirebaseJson batch;
+
+  int count = 0;
+  size_t newOffset = offset;
+
+  
+  while (logFile.available() && count < MAX_LINES_PER_UPLOAD) {
+    String line = logFile.readStringUntil('\n');
+    if (line.length() == 0) continue;
+
+    FirebaseJson r;
+    r.setJsonData(line);
+    readings.set(String(count), r);
+
+    newOffset = logFile.position();
+    count++;
+  }
+
+  logFile.close();
+
+  if (count == 0) {
+    Serial.println("No new data to upload");
+    return;
+  }
+
+  // ---- Build batch ----
+  batch.set("device_id", deviceID);
+  batch.set("readings", readings);
+
+  delay(500); 
+
+  // ---- Upload ----
+  if (Firebase.pushJSON(fbdo, "/sensor/data", batch)) {
+    Serial.println("Batch uploaded successfully");
+
+    // ---- Save new pointer ----
+    File ptrWrite = SD.open(UPLOAD_PTR_FILE, FILE_WRITE);
+    if (ptrWrite) {
+      ptrWrite.print(newOffset);
+      ptrWrite.close();
+    }
+  } else {
+    Serial.println("Upload failed");
+    Serial.println(fbdo.errorReason());
+  }
+}
+
 
 void getDeviceID(char* id) {
   uint8_t serial[6];
