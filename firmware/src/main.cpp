@@ -1,29 +1,28 @@
 #include <Arduino.h>
-#include <ArduinoJson.h>
 #include <WiFi.h>
-#include <FirebaseESP32.h>
+#include <HTTPClient.h>
+#include <WiFiClientSecure.h>
+#include <ArduinoJson.h>
 #include <Wire.h>
 #include <SD.h>
 #include <time.h>
 
 #include "SensirionI2CSen5x.h"
-#include <addons/TokenHelper.h>
-#include <addons/RTDBHelper.h>
 
 /* ===================== CONFIG ===================== */
+
 #define WIFI_SSID "Lebse"
 #define WIFI_PASSWORD ""
 
-#define API_KEY "AIzaSyDeT6jMxkcVfsaA__vtLAvtKCq1h81jrXM"
-#define DATABASE_URL "https://air-quality-4283c-default-rtdb.europe-west1.firebasedatabase.app/"
-#define USER_EMAIL "natnaelabdissa8@gmail.com"
-#define USER_PASSWORD "oogabooga"
+#define DEVICE_ID "5afd4455-93ab-4501-b12a-19feb37c607e"
+#define API_KEY   "1NkPL7xXwa-JlPqPS_FmQDHH_qp3f-DOMpRhGX4kC04"
+#define SERIAL_NUMBER "AQ-ET-AA-ETB-2026-01"
 
-#define NTP_SERVER "pool.ntp.org"
+#define API_URL "https://air-q-9f333037f389.herokuapp.com/api/v1/sensor-readings/device"
 
-#define SENSOR_READ_INTERVAL 30000UL
-#define UPLOAD_INTERVAL      120000UL   // upload every 2 minutes
-#define WARMUP_TIME          60000UL     // SEN55 warmup
+#define SENSOR_READ_INTERVAL 60000UL
+#define UPLOAD_INTERVAL      600000UL   // 10 minutes
+#define WARMUP_TIME          10000UL
 
 #define SD_CS 5
 #define LOG_FILE "/log.txt"
@@ -31,52 +30,43 @@
 
 #define MAX_LINES_PER_UPLOAD 10
 
-/* ===================== GLOBALS ===================== */
-SensirionI2CSen5x sen5x;
+#define NTP_SERVER "pool.ntp.org"
 
-FirebaseData fbdo;
-FirebaseAuth auth;
-FirebaseConfig config;
+/* ===================== GLOBALS ===================== */
+
+SensirionI2CSen5x sen5x;
 
 unsigned long lastSensorRead = 0;
 unsigned long lastUploadTime = 0;
 unsigned long warmupStartTime = 0;
 
+
 bool sensorReady = false;
 
-char deviceID[18];
+/* ===================== PROTOTYPES ===================== */
 
-/* ===================== FUNCTION PROTOTYPES ===================== */
-void readSEN55(
-  float& pm1_0, float& pm2_5, float& pm4_0, float& pm10_0,
-  float& humidity, float& temperature, float& vocIndex, float& noxIndex
-);
-
-void logReadingToSD(FirebaseJson& reading);
+void readSEN55(float&, float&, float&, float&, float&, float&, float&, float&);
+void logReadingToSD(JsonDocument&);
 void uploadFromSD();
-void getDeviceID(char* id);
-String getTimestamp();
+String getTimestampISO();
 
 /* ===================== SETUP ===================== */
+
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   Wire.begin(21, 22);
 
-  /* ---- SEN55 ---- */
   sen5x.begin(Wire);
   sen5x.deviceReset();
-  getDeviceID(deviceID);
   sen5x.startMeasurement();
   warmupStartTime = millis();
 
-  /* ---- SD ---- */
-  if (!SD.begin(SD_CS, SPI, 1000000)) {
+  if (!SD.begin(SD_CS)) {
     Serial.println("SD init failed");
   } else {
     Serial.println("SD ready");
   }
 
-  /* ---- WIFI ---- */
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("Connecting WiFi");
   while (WiFi.status() != WL_CONNECTED) {
@@ -85,28 +75,24 @@ void setup() {
   }
   Serial.println("\nWiFi connected");
 
-  /* ---- TIME ---- */
-  setenv("TZ", "EAT", 1);   // UTC+3
-  tzset();
+  /* ---------- NTP TIME SYNC (CRITICAL FOR HTTPS) ---------- */
   configTime(0, 0, NTP_SERVER);
 
-  /* ---- FIREBASE ---- */
-  config.api_key = API_KEY;
-  config.database_url = DATABASE_URL;
-  auth.user.email = USER_EMAIL;
-  auth.user.password = USER_PASSWORD;
-  config.token_status_callback = tokenStatusCallback;
-
-  Firebase.begin(&config, &auth);
-  Firebase.setDoubleDigits(5);
-
-  Serial.println("Firebase ready");
+  Serial.print("Syncing time");
+  time_t now;
+  while (true) {
+    time(&now);
+    if (now > 1700000000) break; // valid time (post-2023)
+    Serial.print(".");
+    delay(500);
+  }
+  Serial.println("\nTime synced");
 }
 
 /* ===================== LOOP ===================== */
+
 void loop() {
 
-  /* ---- SEN55 WARMUP ---- */
   if (!sensorReady) {
     if (millis() - warmupStartTime >= WARMUP_TIME) {
       sensorReady = true;
@@ -115,36 +101,41 @@ void loop() {
     return;
   }
 
-  /* ---- SENSOR READ ---- */
   if (millis() - lastSensorRead >= SENSOR_READ_INTERVAL) {
     lastSensorRead = millis();
 
     float pm1_0, pm2_5, pm4_0, pm10_0;
     float humidity, temperature, vocIndex, noxIndex;
 
+    Serial.println("Starting sensor read...");
     readSEN55(pm1_0, pm2_5, pm4_0, pm10_0,
               humidity, temperature, vocIndex, noxIndex);
+    Serial.println("Sensor read completed");
 
-    FirebaseJson reading;
-    reading.set("timestamp", getTimestamp());
-    reading.set("pm1_0", pm1_0);
-    reading.set("pm2_5", pm2_5);
-    reading.set("pm4_0", pm4_0);
-    reading.set("pm10", pm10_0);
-    reading.set("humidity", humidity);
-    reading.set("temperature", temperature);
-    reading.set("voc_index", vocIndex);
-    reading.set("nox_index", noxIndex);
+    StaticJsonDocument<256> doc;
+    doc["pm2_5"] = pm2_5;
+    doc["pm10"] = pm10_0;
+    doc["humidity"] = humidity;
+    doc["temperature"] = temperature;
+    doc["voc_index"] = (float)vocIndex;
+    doc["nox_index"] = (float)noxIndex;
+    doc["recorded_at"] = getTimestampISO();
+    doc["device_id"] = DEVICE_ID;
+    doc["serial_number"] = SERIAL_NUMBER;
 
-    logReadingToSD(reading);
+    Serial.println("Starting SD log...");
+    logReadingToSD(doc);
+    Serial.println("SD log completed");
   }
 
-  /* ---- SD → FIREBASE UPLOAD ---- */
   if (millis() - lastUploadTime >= UPLOAD_INTERVAL) {
     lastUploadTime = millis();
+    Serial.println("Starting upload from SD...");
     uploadFromSD();
+    Serial.println("Upload batch done");
   }
 }
+
 
 /* ===================== FUNCTIONS ===================== */
 
@@ -152,89 +143,61 @@ void readSEN55(
   float& pm1_0, float& pm2_5, float& pm4_0, float& pm10_0,
   float& humidity, float& temperature, float& vocIndex, float& noxIndex
 ) {
-  uint16_t error = sen5x.readMeasuredValues(
-    pm1_0, pm2_5, pm4_0, pm10_0,
-    humidity, temperature, vocIndex, noxIndex
-  );
-if (error) {
-    Serial.println("SEN55 read error");
-  }
+  sen5x.readMeasuredValues(pm1_0, pm2_5, pm4_0, pm10_0,
+                           humidity, temperature, vocIndex, noxIndex);
 }
 
-void logReadingToSD(FirebaseJson& reading) {
+void logReadingToSD(JsonDocument& doc) {
   File f = SD.open(LOG_FILE, FILE_APPEND);
-  if (!f) {
-    Serial.println("SD write failed");
-    return;
-  }
+  if (!f) return;
 
-  String s;
-  reading.toString(s, false);  // compact JSON
-  f.println(s);
+  serializeJson(doc, f);
+  f.println();
   f.close();
 
   Serial.println("Logged to SD");
 }
-/*
-void uploadFromSD() {
-  if (!Firebase.ready()) return;
 
-  File f = SD.open(LOG_FILE, FILE_READ);
-  if (!f) {
-    Serial.println("No SD log file");
-    return;
+bool postReading(JsonDocument& doc) {
+  WiFiClientSecure client;
+  client.setInsecure();
+  client.setHandshakeTimeout(30);
+  client.setTimeout(30000);
+
+  HTTPClient https;
+  https.setReuse(false);
+
+  if (!https.begin(client, API_URL)) {
+    Serial.println("HTTPS begin failed");
+    return false;
   }
 
-  FirebaseJson readings;
-  FirebaseJson batch;
+  doc["device_id"] = DEVICE_ID;
+  doc["serial_number"] = SERIAL_NUMBER;
 
-  int count = 0;
-  String remaining = "";
+  String payload;
+  serializeJson(doc, payload);
 
-  while (f.available()) {
-    String line = f.readStringUntil('\n');
+  https.addHeader("Content-Type", "application/json");
+  https.addHeader("X-Device-ID", DEVICE_ID);
+  https.addHeader("X-API-Key", API_KEY);
+  
+  Serial.println("Payload:");
+  Serial.println(payload);
+  int code = https.POST(payload);
 
-    if (count < MAX_LINES_PER_UPLOAD) {
-      FirebaseJson r;
-      r.setJsonData(line);
-      readings.set(String(count), r);
-      count++;
-    } else {
-      remaining
-       += line + "\n";
-    }
-  }
-  f.close();
+  Serial.print("HTTP code: ");
+  Serial.println(code);
 
-  if (count == 0) return;
+  https.end();
 
-  batch.set("device_id", deviceID);
-  batch.set("readings", readings);
-
-  if (Firebase.pushJSON(fbdo, "/sensor/data", batch)) {
-    Serial.println("SD batch uploaded");
-
-    File w = SD.open(LOG_FILE, FILE_WRITE);
-    if (w) {
-      w.print(remaining);
-      w.close();
-    }
-  } else {
-    Serial.println(" Upload failed");
-    Serial.println(fbdo.errorReason());
-  }
+  return (code == 201);
 }
-*/
-void uploadFromSD() {
-  if (!Firebase.ready()) return;
 
+void uploadFromSD() {
 
   File logFile = SD.open(LOG_FILE, FILE_READ);
-  if (!logFile) {
-    Serial.println("Failed to open log file");
-    return;
-  }
-
+  if (!logFile) return;
 
   size_t offset = 0;
   File ptrFile = SD.open(UPLOAD_PTR_FILE, FILE_READ);
@@ -243,76 +206,49 @@ void uploadFromSD() {
     ptrFile.close();
   }
 
-  
   if (!logFile.seek(offset)) {
-    Serial.println("Seek failed, resetting pointer");
     offset = 0;
     logFile.seek(0);
   }
 
-  FirebaseJson readings;
-  FirebaseJson batch;
-
   int count = 0;
   size_t newOffset = offset;
 
-  
   while (logFile.available() && count < MAX_LINES_PER_UPLOAD) {
+
     String line = logFile.readStringUntil('\n');
     if (line.length() == 0) continue;
 
-    FirebaseJson r;
-    r.setJsonData(line);
-    readings.set(String(count), r);
+    StaticJsonDocument<256> doc;
+    if (deserializeJson(doc, line)) {
+      newOffset = logFile.position();
+      continue;
+    }
 
-    newOffset = logFile.position();
-    count++;
+    if (postReading(doc)) {
+      newOffset = logFile.position();
+
+      File w = SD.open(UPLOAD_PTR_FILE, FILE_WRITE);
+      if (w) {
+        w.print(newOffset);
+        w.close();
+      }
+
+      count++;
+    } else {
+      Serial.println("Upload failed, stopping batch");
+      break;
+    }
   }
 
   logFile.close();
-
-  if (count == 0) {
-    Serial.println("No new data to upload");
-    return;
-  }
-
-  // ---- Build batch ----
-  batch.set("device_id", deviceID);
-  batch.set("readings", readings);
-
-  delay(500); 
-
-  // ---- Upload ----
-  if (Firebase.pushJSON(fbdo, "/sensor/data", batch)) {
-    Serial.println("Batch uploaded successfully");
-
-    // ---- Save new pointer ----
-    File ptrWrite = SD.open(UPLOAD_PTR_FILE, FILE_WRITE);
-    if (ptrWrite) {
-      ptrWrite.print(newOffset);
-      ptrWrite.close();
-    }
-  } else {
-    Serial.println("Upload failed");
-    Serial.println(fbdo.errorReason());
-  }
 }
 
-
-void getDeviceID(char* id) {
-  uint8_t serial[6];
-  if (sen5x.getSerialNumber(serial, sizeof(serial))) return;
-
-  sprintf(id, "%02X:%02X:%02X:%02X:%02X:%02X",
-          serial[0], serial[1], serial[2],
-          serial[3], serial[4], serial[5]);
-}
-
-String getTimestamp() {
+String getTimestampISO() {
   struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) return "1970-01-01 00:00:00";
+  if (!getLocalTime(&timeinfo)) return "1970-01-01T00:00:00Z";
 
   char buf[30];
-  strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &timeinfo);
+  strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", &timeinfo);
   return String(buf);
 }
