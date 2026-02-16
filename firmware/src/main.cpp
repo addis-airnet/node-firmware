@@ -22,7 +22,7 @@
 
 #define SENSOR_READ_INTERVAL 60000UL
 #define UPLOAD_INTERVAL      600000UL   // 10 minutes
-#define WARMUP_TIME          10000UL
+#define WARMUP_TIME          180000UL
 
 #define SD_CS 5
 #define LOG_FILE "/log.txt"
@@ -58,6 +58,7 @@ void setup() {
 
   sen5x.begin(Wire);
   sen5x.deviceReset();
+  delay(200);
   sen5x.startMeasurement();
   warmupStartTime = millis();
 
@@ -143,13 +144,28 @@ void readSEN55(
   float& pm1_0, float& pm2_5, float& pm4_0, float& pm10_0,
   float& humidity, float& temperature, float& vocIndex, float& noxIndex
 ) {
-  sen5x.readMeasuredValues(pm1_0, pm2_5, pm4_0, pm10_0,
-                           humidity, temperature, vocIndex, noxIndex);
+  uint16_t error;
+char errorMessage[256];
+
+error = sen5x.readMeasuredValues(
+  pm1_0, pm2_5, pm4_0, pm10_0,
+  humidity, temperature, vocIndex, noxIndex
+);
+
+if (error) {
+  errorToString(error, errorMessage, 256);
+  Serial.print("SEN55 error: ");
+  Serial.println(errorMessage);
+  return;
+}
 }
 
 void logReadingToSD(JsonDocument& doc) {
   File f = SD.open(LOG_FILE, FILE_APPEND);
-  if (!f) return;
+  if (!f) {
+    Serial.println("sd failed to log");
+    return;
+  } 
 
   serializeJson(doc, f);
   f.println();
@@ -157,7 +173,6 @@ void logReadingToSD(JsonDocument& doc) {
 
   Serial.println("Logged to SD");
 }
-
 bool postReading(JsonDocument& doc) {
   WiFiClientSecure client;
   client.setInsecure();
