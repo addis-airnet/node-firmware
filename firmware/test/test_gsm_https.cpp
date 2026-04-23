@@ -19,9 +19,9 @@ void setup() {
 
 //*****************************************************************************************************
 //! cmd "AT" checks if
-      1. gsm responds/powered on
-      2. rx, tx wired and work
-      3. baud rate correct
+//! 1. gsm responds/powered on
+//! 2. rx, tx wired and work
+//! 3. baud rate correct
 //! cmd "ATE0": default echo off
 //*****************************************************************************************************
     sendAT("AT");
