@@ -1,3 +1,6 @@
+/* Power Supply 
+Via USB(5V) for testing
+*/
 #include <Arduino.h>
 
 #define RX_PIN 16 // esp32@pin 16
