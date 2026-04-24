@@ -1,5 +1,6 @@
 /* Power Supply 
-Via USB(5V) for testing
+Option 1: Via USB(5V) for testing
+option 2: 5V DC, 2A from DC source
 */
 #include <Arduino.h>
 
