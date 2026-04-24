@@ -13,7 +13,7 @@ String jsonData = "{\"Date\":\"test\",\"pm2_5\":24.7,\"pm10\":25.1,\"humidity\":
 
 void setup() {
     Serial.begin(115200);
-    sim7600.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN); SERIAAL_8N1: 8 data bit, No parity, 1 stop bit
+    sim7600.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN); SERIAL_8N1: 8 data bit, No parity, 1 stop bit
     delay(3000);
     Serial.println("SIM7600 HTTPS TEST");
 
