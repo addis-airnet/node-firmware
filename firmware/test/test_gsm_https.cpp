@@ -1,7 +1,7 @@
 #include <Arduino.h>
 
-#define RX_PIN
-#define TX_PIN
+#define RX_PIN 16 // esp32@pin 16
+#define TX_PIN 17 // esp32@pin 17
 HardwareSerial sim7600(2); // UART object
 
 
