@@ -9,7 +9,7 @@ const char* FIREBASE_URL = "https://sen55-air-quality-monitor-default-rtdb.europ
 
 String jsonData = "{\"Date\":\"test\",\"pm2_5\":24.7,\"pm10\":25.1,\"humidity\":42.74,\"temperature\":22.985,\"voc_index\":106,\"nox_index\":1}";
 
-// Standard function to send basic AT commands
+// function to send basic AT commands
 void sendAT(String cmd, int delayMs = 1000) {
     sim7600.println(cmd);
     Serial.println(">> " + cmd);
