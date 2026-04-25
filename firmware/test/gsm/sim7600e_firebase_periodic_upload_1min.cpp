@@ -93,9 +93,6 @@ void loop() {
         Serial.println("\n--- POST Failed or Timed Out ---");
     }
 
-    // 5. Terminate Session
-    //sendAT("AT+HTTPTERM"); 
-
     // 6. Wait 1 Minute before the next transmission
     Serial.println("Waiting 60 seconds...\n");
     delay(60000); 
