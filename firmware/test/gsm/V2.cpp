@@ -4,7 +4,7 @@
 #define TX_PIN 17 
 HardwareSerial sim7600(2); 
 
-const char* APN = "internet";  // Change to "ethionet" if using Ethio Telecom
+const char* APN = "internet";
 const char* FIREBASE_URL = "https://sen55-air-quality-monitor-default-rtdb.europe-west1.firebasedatabase.app/sensor/data.json"; 
 
 String jsonData = "{\"Date\":\"test\",\"pm2_5\":24.7,\"pm10\":25.1,\"humidity\":42.74,\"temperature\":22.985,\"voc_index\":106,\"nox_index\":1}";
@@ -92,9 +92,6 @@ void loop() {
     } else {
         Serial.println("\n--- POST Failed or Timed Out ---");
     }
-
-    // 5. Terminate Session
-    //sendAT("AT+HTTPTERM"); 
 
     // 6. Wait 1 Minute before the next transmission
     Serial.println("Waiting 60 seconds...\n");
