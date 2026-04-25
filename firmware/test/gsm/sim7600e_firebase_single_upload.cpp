@@ -59,5 +59,4 @@ void setup() {
     sendAT("AT+HTTPREAD", 3000);     
     sendAT("AT+HTTPTERM"); 
 }
-
 void loop() {}
