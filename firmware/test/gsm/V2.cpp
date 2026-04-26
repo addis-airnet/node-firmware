@@ -7,6 +7,7 @@ HardwareSerial sim7600(2);
 const char* APN = "internet";
 const char* FIREBASE_URL = "https://sen55-air-quality-monitor-default-rtdb.europe-west1.firebasedatabase.app/sensor/data.json"; 
 
+//dummmy data
 String jsonData = "{\"Date\":\"test\",\"pm2_5\":24.7,\"pm10\":25.1,\"humidity\":42.74,\"temperature\":22.985,\"voc_index\":106,\"nox_index\":1}";
 
 // function to send basic AT commands
@@ -64,8 +65,6 @@ void setup() {
 
 void loop() {
     Serial.println("\n--- Starting New HTTP POST ---");
-
-    
 
     // 2. Request to Send Data
     sim7600.print("AT+HTTPDATA=");
