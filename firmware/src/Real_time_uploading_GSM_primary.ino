@@ -1,9 +1,7 @@
 /*
- * ============================================================
+ * ############################################################
  *  Air Quality Monitor Firmware
- *  Communication: GSM SIM7600E (PRIMARY) | WiFi (BACKUP)
- *  Sensor: SEN55 | Storage: SD Card | API: Heroku REST API
- * ============================================================
+ * ############################################################
  */
 
 #include <Arduino.h>
@@ -30,7 +28,7 @@
 // --- GSM (PRIMARY) ---
 #define GSM_RX_PIN    16
 #define GSM_TX_PIN    17
-#define GSM_APN       "internet"   // Change to "ethionet" for Ethio Telecom if needed
+#define GSM_APN       "internet"  
 
 // --- Device Identity ---
 #define DEVICE_ID     "5afd4455-93ab-4501-b12a-19feb37c607e"
