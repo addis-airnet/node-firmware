@@ -46,7 +46,6 @@ ESP32 GPIO 22  →  SEN55 SCL
 ESP32 GPIO 16  →  SIM7600E TX
 ESP32 GPIO 17  →  SIM7600E RX
 ESP32 GPIO 5   →  SD Card CS
-3.3V / GND     →  All peripherals (check SIM7600E — may require 5V supply)
 ```
 
 ---
