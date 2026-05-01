@@ -82,7 +82,7 @@ All configuration is defined via `#define` macros at the top of the firmware fil
 ```cpp
 #define GSM_RX_PIN    16
 #define GSM_TX_PIN    17
-#define GSM_APN       "internet"   // Use "ethionet" for Ethio Telecom
+#define GSM_APN       "internet"  
 ```
 
 ### Device ID
@@ -98,17 +98,17 @@ All configuration is defined via `#define` macros at the top of the firmware fil
 
 ### Timing
 ```cpp
-#define REALTIME_UPLOAD_INTERVAL  30000UL   // 30 seconds between uploads
-#define WARMUP_TIME               180000UL  // 3-minute SEN55 warm-up
-#define WIFI_CHECK_INTERVAL       10000UL   // WiFi reconnect check interval
-#define WDT_TIMEOUT_MS            300000UL  // 5-minute watchdog timeout
+#define REALTIME_UPLOAD_INTERVAL  30000UL   
+#define WARMUP_TIME               180000UL  
+#define WIFI_CHECK_INTERVAL       10000UL   
+#define WDT_TIMEOUT_MS            300000UL  
 ```
 
 ### Time Validation
 ```cpp
-#define MIN_VALID_EPOCH           1704067200UL  // 2024-01-01 — reject timestamps older than this
-#define TIME_FUTURE_MARGIN        300            // Max allowed forward jump in seconds
-#define TIME_MONOTONIC_MARGIN     10             // Max allowed backward drift in seconds
+#define MIN_VALID_EPOCH           1704067200UL  
+#define TIME_FUTURE_MARGIN        300            
+#define TIME_MONOTONIC_MARGIN     10             
 ```
 
 ### GSM Tuning
@@ -446,21 +446,3 @@ Connect at **115200 baud** to monitor device state. Key prefixes:
 | `Rotated to new...` | SD log file rotation |
 | `Backup logged to SD` | Successful SD write |
 | `Watchdog enabled...` | WDT initialization confirmation |
-
----
-
-## Deployment Notes
-
-1. **Per-device configuration:** Update `DEVICE_ID` and `SERIAL_NUMBER` uniquely for each of the 20 units before flashing.
-
-2. **APN setting:** Confirm with the SIM card provider whether `"internet"` or `"ethionet"` is the correct APN for the SIM cards installed.
-
-3. **SIM7600E power supply:** The SIM7600E module may require up to 2A peak current during network registration. Ensure the power supply can handle this. Insufficient power is the most common cause of GSM init failure in the field.
-
-4. **HTTPS compatibility:** If HTTPS POSTs fail during field testing, add `gsm_send_at("AT+HTTPSSL=1", 500)` before the `AT+HTTPINIT` call in `gsm_init_http()`. Some SIM7600E firmware versions require explicit SSL enable.
-
-5. **SD card format:** Must be FAT32. Cards larger than 32GB may require manual FAT32 formatting as most OS formatters default to exFAT above that size.
-
-6. **Scheduled restarts:** Devices reboot at 00:00 and 12:00 EAT daily. This is intentional. Ensure deployment timestamps account for the ~5 second reboot window.
-
-7. **Sensor warm-up:** The SEN55 requires 3 minutes of warm-up after every power cycle before readings are taken. Readings during this period are intentionally suppressed by the firmware.
