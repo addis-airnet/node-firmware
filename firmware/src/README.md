@@ -73,27 +73,25 @@ Install the following libraries via the Arduino Library Manager or PlatformIO:
 
 All configuration is defined via `#define` macros at the top of the firmware file.
 
-### WiFi (Backup)
+### WiFi
 ```cpp
 #define WIFI_SSID     "your_ssid"
 #define WIFI_PASSWORD "your_password"
 ```
 
-### GSM (Primary)
+### GSM
 ```cpp
 #define GSM_RX_PIN    16
 #define GSM_TX_PIN    17
 #define GSM_APN       "internet"   // Use "ethionet" for Ethio Telecom
 ```
 
-### Device Identity (unique per device)
+### Device ID
 ```cpp
 #define DEVICE_ID     "5afd4455-93ab-4501-b12a-19feb37c607e"
 #define API_KEY       "1NkPL7xXwa-JlPqPS_FmQDHH_qp3f-DOMpRhGX4kC04"
 #define SERIAL_NUMBER "AQ-ET-AA-ETB-2026-01"
 ```
-> ⚠️ **`DEVICE_ID` and `SERIAL_NUMBER` must be unique for each of the 20 deployed devices.**
-
 ### API Endpoint
 ```cpp
 #define API_URL "https://air-q-9f333037f389.herokuapp.com/api/v1/sensor-readings/device"
@@ -132,17 +130,13 @@ The firmware runs a non-blocking state machine in `loop()`. This avoids blocking
 ```
 
    STATE_INITIALIZING    (hardware init, sensor start, SD check)
-         ┬
          ↓
     STATE_GSM_INIT       GSM setup: AT commands, SIM, network, PDP, HTTP session
-         ┬
          │  GSM init fails GSM_MAX_INIT_RETRIES (3) times
          ↓
   STATE_CONNECTING_WIFI    WiFi fallback: WiFi.begin(), 30s timeout
-         ┬
          ↓
    STATE_SYNCING_TIME     NTP sync via WiFi, 60s window, up to 10 cycles
-         ┬
          ↓
   STATE_OPERATIONAL      Main loop: 30s upload cycle, SD logging
 
@@ -189,12 +183,12 @@ Called every 30 seconds during `STATE_OPERATIONAL`.
 
 ```
 AT+HTTPDATA=<length>,10000  → Tell modem payload size; 10s window to send data
-[wait for "DOWNLOAD" prompt]
-[send raw JSON payload]
-[wait for "OK"]
+ wait for "DOWNLOAD" prompt
+ send raw JSON payload
+ wait for "OK"
 AT+HTTPACTION=1             → Execute HTTP POST
-[wait for "+HTTPACTION:" response, timeout = GSM_HTTP_TIMEOUT_MS]
-[parse response for HTTP 200 or 201 → success]
+ wait for "+HTTPACTION:" response, timeout = GSM_HTTP_TIMEOUT_MS
+ parse response for HTTP 200 or 201 → successs
 ```
 
 The SIM7600E handles TLS/SSL natively — no additional SSL configuration commands are required. HTTPS URLs are supported transparently through `AT+HTTPINIT`.
@@ -471,9 +465,3 @@ Connect at **115200 baud** to monitor device state. Key prefixes:
 6. **Scheduled restarts:** Devices reboot at 00:00 and 12:00 EAT daily. This is intentional. Ensure deployment timestamps account for the ~5 second reboot window.
 
 7. **Sensor warm-up:** The SEN55 requires 3 minutes of warm-up after every power cycle before readings are taken. Readings during this period are intentionally suppressed by the firmware.
-
----
-
-## License
-
-Internal project — Addis Ababa Air Quality Monitoring Network.
