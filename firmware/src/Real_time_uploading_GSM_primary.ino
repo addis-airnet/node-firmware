@@ -39,7 +39,7 @@
 #define API_URL "https://air-q-9f333037f389.herokuapp.com/api/v1/sensor-readings/device"
 
 // --- Timing ---
-#define REALTIME_UPLOAD_INTERVAL  30000UL
+#define REALTIME_UPLOAD_INTERVAL  60000UL
 #define WARMUP_TIME               180000UL
 #define WIFI_CHECK_INTERVAL       10000UL
 
